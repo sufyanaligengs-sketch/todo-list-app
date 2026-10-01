@@ -4,7 +4,7 @@ const Database = require("better-sqlite3");
 
 const app = express();
 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 // =========================
 // DATABASE
@@ -191,6 +191,6 @@ app.delete("/api/tasks/completed/all", (req, res) => {
 
 app.listen(PORT, () => {
 
-    console.log(`Server berjalan di http://localhost:${PORT}`);
+    console.log(`Server berjalan di port http:// ${PORT}`);
 
 });
