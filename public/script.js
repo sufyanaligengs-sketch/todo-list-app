@@ -7,80 +7,296 @@ const clearCompleted = document.getElementById("clearCompleted");
 const filters = document.querySelectorAll(".filter");
 
 let tasks = [];
-
 let currentFilter = "all";
 
+// =========================
+// AUTHENTICATION
+// =========================
+
+const loginPage = document.getElementById("loginPage");
+const registerPage = document.getElementById("registerPage");
+const todoPage = document.getElementById("todoPage");
+
+const loginEmail = document.getElementById("loginEmail");
+const loginPassword = document.getElementById("loginPassword");
+const loginButton = document.getElementById("loginButton");
+
+const registerEmail = document.getElementById("registerEmail");
+const registerPassword = document.getElementById("registerPassword");
+const registerButton = document.getElementById("registerButton");
+
+const showRegister = document.getElementById("showRegister");
+const showLogin = document.getElementById("showLogin");
+
+const logoutButton = document.getElementById("logoutButton");
 
 // =========================
-// GET TASKS FROM BACKEND
+// SHOW REGISTER
+// =========================
+
+showRegister.addEventListener("click", () => {
+    loginPage.style.display = "none";
+    registerPage.style.display = "block";
+    todoPage.style.display = "none";
+});
+
+// =========================
+// SHOW LOGIN
+// =========================
+
+showLogin.addEventListener("click", () => {
+    registerPage.style.display = "none";
+    loginPage.style.display = "block";
+    todoPage.style.display = "none";
+});
+
+// =========================
+// REGISTER
+// =========================
+
+registerButton.addEventListener("click", async () => {
+    const email = registerEmail.value.trim();
+    const password = registerPassword.value;
+
+    if (!email || !password) {
+        alert("Email dan password wajib diisi.");
+        return;
+    }
+
+    try {
+        const response = await fetch("/api/register", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                email: email,
+                password: password
+            })
+        });
+
+        const data = await response.json();
+
+       try {
+    const response = await fetch("/api/tasks", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+            text: text
+        })
+    });
+
+    const responseText = await response.text();
+
+    console.log("STATUS ADD TASK:", response.status);
+    console.log("RESPONSE ADD TASK:", responseText);
+
+    let data;
+
+    try {
+        data = JSON.parse(responseText);
+    } catch (error) {
+        throw new Error(
+            "Server mengembalikan HTML, bukan JSON. Status: " +
+            response.status
+        );
+    }
+
+    if (!response.ok) {
+        throw new Error(
+            data.message || "Gagal menambahkan task."
+        );
+    }
+
+    tasks.unshift(data);
+
+    taskInput.value = "";
+
+    renderTasks();
+
+    taskInput.focus();
+
+} catch (error) {
+    console.error("ERROR ADD TASK:", error);
+    alert("Gagal menambahkan task: " + error.message);
+}
+
+    } catch (error) {
+        console.error("ERROR REGISTER:", error);
+        alert("Gagal terhubung ke server.");
+    }
+});
+
+// =========================
+// LOGIN
+// =========================
+
+loginButton.addEventListener("click", async () => {
+    const email = loginEmail.value.trim();
+    const password = loginPassword.value;
+
+    if (!email || !password) {
+        alert("Email dan password wajib diisi.");
+        return;
+    }
+
+    try {
+        const response = await fetch("/api/login", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                email: email,
+                password: password
+            })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            alert(data.message || "Login gagal.");
+            return;
+        }
+
+        localStorage.setItem("token", data.token);
+
+        loginEmail.value = "";
+        loginPassword.value = "";
+
+        loginPage.style.display = "none";
+        registerPage.style.display = "none";
+        todoPage.style.display = "block";
+
+        await loadTasks();
+
+    } catch (error) {
+        console.error("ERROR LOGIN:", error);
+        alert("Gagal terhubung ke server.");
+    }
+});
+
+// =========================
+// LOGOUT
+// =========================
+
+logoutButton.addEventListener("click", () => {
+    localStorage.removeItem("token");
+
+    tasks = [];
+
+    taskList.innerHTML = "";
+
+    todoPage.style.display = "none";
+    registerPage.style.display = "none";
+    loginPage.style.display = "block";
+});
+
+// =========================
+// GET TASKS
 // =========================
 
 async function loadTasks() {
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+        return;
+    }
 
     try {
+        const response = await fetch("/api/tasks", {
+            method: "GET",
+            headers: {
+                "Authorization": `Bearer ${token}`
+            }
+        });
 
-        const response = await fetch("/api/tasks");
+        const data = await response.json();
 
         if (!response.ok) {
-            throw new Error("Gagal mengambil data");
+            if (response.status === 401 || response.status === 403) {
+                localStorage.removeItem("token");
+                tasks = [];
+
+                todoPage.style.display = "none";
+                registerPage.style.display = "none";
+                loginPage.style.display = "block";
+
+                alert("Sesi login sudah tidak valid. Silakan login kembali.");
+                return;
+            }
+
+            throw new Error(data.message || "Gagal mengambil data.");
         }
 
-        tasks = await response.json();
+        tasks = data;
 
         renderTasks();
 
     } catch (error) {
+        console.error("ERROR LOAD TASKS:", error);
 
-        console.error(error);
+        taskList.innerHTML = "";
 
-        taskList.innerHTML = `
-            <li class="empty-message">
-                Gagal mengambil data dari server.
-            </li>
-        `;
+        const errorMessage = document.createElement("li");
+        errorMessage.className = "empty-message";
+        errorMessage.textContent = "Gagal mengambil data dari server.";
 
+        taskList.appendChild(errorMessage);
     }
 }
-
 
 // =========================
 // ADD TASK
 // =========================
 
 async function addTask() {
-
     const text = taskInput.value.trim();
 
     if (text === "") {
         return;
     }
 
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+        alert("Silakan login terlebih dahulu.");
+        return;
+    }
+
     try {
-
         const response = await fetch("/api/tasks", {
-
             method: "POST",
-
             headers: {
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
             },
-
             body: JSON.stringify({
                 text: text
             })
-
         });
 
+        const data = await response.json();
 
         if (!response.ok) {
-            throw new Error("Gagal menambahkan task");
+            if (response.status === 401 || response.status === 403) {
+                localStorage.removeItem("token");
+                tasks = [];
+
+                todoPage.style.display = "none";
+                loginPage.style.display = "block";
+
+                alert("Sesi login sudah tidak valid.");
+                return;
+            }
+
+            throw new Error(data.message || "Gagal menambahkan task.");
         }
 
-
-        const newTask = await response.json();
-
-
-        tasks.unshift(newTask);
+        tasks.unshift(data);
 
         taskInput.value = "";
 
@@ -89,404 +305,289 @@ async function addTask() {
         taskInput.focus();
 
     } catch (error) {
-
-        console.error(error);
-
-        alert("Gagal menambahkan task.");
-
+        console.error("ERROR ADD TASK:", error);
+        alert("Gagal menambahkan task: " + error.message);
     }
 }
-
 
 // =========================
 // TOGGLE TASK
 // =========================
 
 async function toggleTask(id) {
-
     const task = tasks.find(task => task.id === id);
 
     if (!task) {
         return;
     }
 
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+        alert("Silakan login terlebih dahulu.");
+        return;
+    }
 
     try {
-
         const response = await fetch(`/api/tasks/${id}`, {
-
             method: "PUT",
-
             headers: {
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
             },
-
             body: JSON.stringify({
-
                 text: task.text,
-
                 completed: !task.completed
-
             })
-
         });
 
+        const data = await response.json();
 
         if (!response.ok) {
-            throw new Error("Gagal mengubah task");
+            throw new Error(data.message || "Gagal mengubah task.");
         }
 
-
-        const updatedTask = await response.json();
-
-
-        tasks = tasks.map(task => {
-
-            if (task.id === id) {
-                return updatedTask;
+        tasks = tasks.map(currentTask => {
+            if (currentTask.id === id) {
+                return data;
             }
 
-            return task;
-
+            return currentTask;
         });
-
 
         renderTasks();
 
     } catch (error) {
-
-        console.error(error);
-
-        alert("Gagal mengubah task.");
-
+        console.error("ERROR UPDATE TASK:", error);
+        alert("Gagal mengubah task: " + error.message);
     }
 }
-
 
 // =========================
 // DELETE TASK
 // =========================
 
 async function deleteTask(id) {
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+        alert("Silakan login terlebih dahulu.");
+        return;
+    }
 
     try {
-
         const response = await fetch(`/api/tasks/${id}`, {
-
-            method: "DELETE"
-
+            method: "DELETE",
+            headers: {
+                "Authorization": `Bearer ${token}`
+            }
         });
 
+        const data = await response.json();
 
         if (!response.ok) {
-            throw new Error("Gagal menghapus task");
+            throw new Error(data.message || "Gagal menghapus task.");
         }
-
 
         tasks = tasks.filter(task => task.id !== id);
 
         renderTasks();
 
     } catch (error) {
-
-        console.error(error);
-
-        alert("Gagal menghapus task.");
-
+        console.error("ERROR DELETE TASK:", error);
+        alert("Gagal menghapus task: " + error.message);
     }
 }
-
 
 // =========================
 // CLEAR COMPLETED
 // =========================
 
 async function clearCompletedTasks() {
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+        alert("Silakan login terlebih dahulu.");
+        return;
+    }
 
     try {
-
         const response = await fetch(
             "/api/tasks/completed/all",
             {
-                method: "DELETE"
+                method: "DELETE",
+                headers: {
+                    "Authorization": `Bearer ${token}`
+                }
             }
         );
 
+        const data = await response.json();
 
         if (!response.ok) {
             throw new Error(
-                "Gagal menghapus completed tasks"
+                data.message || "Gagal menghapus completed tasks."
             );
         }
-
 
         tasks = tasks.filter(task => !task.completed);
 
         renderTasks();
 
     } catch (error) {
-
-        console.error(error);
-
-        alert("Gagal menghapus completed tasks.");
-
+        console.error("ERROR CLEAR COMPLETED:", error);
+        alert(
+            "Gagal menghapus completed tasks: " +
+            error.message
+        );
     }
 }
-
 
 // =========================
 // FILTER
 // =========================
 
 function getFilteredTasks() {
-
     if (currentFilter === "active") {
-
-        return tasks.filter(
-            task => !task.completed
-        );
-
+        return tasks.filter(task => !task.completed);
     }
-
 
     if (currentFilter === "completed") {
-
-        return tasks.filter(
-            task => task.completed
-        );
-
+        return tasks.filter(task => task.completed);
     }
-
 
     return tasks;
 }
-
 
 // =========================
 // RENDER
 // =========================
 
 function renderTasks() {
-
     taskList.innerHTML = "";
 
     const filteredTasks = getFilteredTasks();
 
-
     if (filteredTasks.length === 0) {
+        const emptyMessage = document.createElement("li");
 
-        const emptyMessage =
-            document.createElement("li");
+        emptyMessage.className = "empty-message";
+        emptyMessage.textContent = "No tasks found.";
 
-        emptyMessage.className =
-            "empty-message";
-
-        emptyMessage.textContent =
-            "No tasks found.";
-
-        taskList.appendChild(
-            emptyMessage
-        );
+        taskList.appendChild(emptyMessage);
 
     } else {
-
         filteredTasks.forEach(task => {
-
-            const li =
-                document.createElement("li");
+            const li = document.createElement("li");
 
             li.className = "task";
 
-
             if (task.completed) {
-
                 li.classList.add("completed");
-
             }
 
+            const leftSide = document.createElement("div");
 
-            // LEFT
+            leftSide.className = "task-left";
 
-            const leftSide =
-                document.createElement("div");
-
-            leftSide.className =
-                "task-left";
-
-
-            // CHECKBOX
-
-            const checkbox =
-                document.createElement("input");
+            const checkbox = document.createElement("input");
 
             checkbox.type = "checkbox";
+            checkbox.className = "task-checkbox";
+            checkbox.checked = task.completed;
 
-            checkbox.className =
-                "task-checkbox";
+            checkbox.addEventListener("change", () => {
+                toggleTask(task.id);
+            });
 
-            checkbox.checked =
-                task.completed;
+            const text = document.createElement("span");
 
+            text.className = "task-text";
+            text.textContent = task.text;
 
-            checkbox.addEventListener(
-                "change",
-                () => toggleTask(task.id)
-            );
+            const deleteButton = document.createElement("button");
 
-
-            // TEXT
-
-            const text =
-                document.createElement("span");
-
-            text.className =
-                "task-text";
-
-            text.textContent =
-                task.text;
-
-
-            // DELETE
-
-            const deleteButton =
-                document.createElement("button");
-
-            deleteButton.className =
-                "delete-button";
-
+            deleteButton.className = "delete-button";
             deleteButton.textContent = "×";
+            deleteButton.title = "Delete task";
 
-            deleteButton.title =
-                "Delete task";
+            deleteButton.addEventListener("click", () => {
+                deleteTask(task.id);
+            });
 
+            leftSide.appendChild(checkbox);
+            leftSide.appendChild(text);
 
-            deleteButton.addEventListener(
-                "click",
-                () => deleteTask(task.id)
-            );
+            li.appendChild(leftSide);
+            li.appendChild(deleteButton);
 
-
-            leftSide.appendChild(
-                checkbox
-            );
-
-            leftSide.appendChild(
-                text
-            );
-
-
-            li.appendChild(
-                leftSide
-            );
-
-            li.appendChild(
-                deleteButton
-            );
-
-
-            taskList.appendChild(
-                li
-            );
-
+            taskList.appendChild(li);
         });
-
     }
-
 
     updateTaskCount();
 }
-
 
 // =========================
 // TASK COUNT
 // =========================
 
 function updateTaskCount() {
-
     const activeTasks =
-        tasks.filter(
-            task => !task.completed
-        ).length;
-
+        tasks.filter(task => !task.completed).length;
 
     if (activeTasks === 1) {
-
-        taskCount.textContent =
-            "1 task left";
-
+        taskCount.textContent = "1 task left";
     } else {
-
-        taskCount.textContent =
-            `${activeTasks} tasks left`;
-
+        taskCount.textContent = `${activeTasks} tasks left`;
     }
 }
-
 
 // =========================
 // EVENTS
 // =========================
 
-addButton.addEventListener(
-    "click",
-    addTask
-);
+addButton.addEventListener("click", addTask);
 
-
-taskInput.addEventListener(
-    "keydown",
-    event => {
-
-        if (event.key === "Enter") {
-
-            addTask();
-
-        }
-
+taskInput.addEventListener("keydown", event => {
+    if (event.key === "Enter") {
+        addTask();
     }
-);
-
+});
 
 clearCompleted.addEventListener(
     "click",
     clearCompletedTasks
 );
 
-
 filters.forEach(filter => {
+    filter.addEventListener("click", () => {
+        filters.forEach(button => {
+            button.classList.remove("active");
+        });
 
-    filter.addEventListener(
-        "click",
-        () => {
+        filter.classList.add("active");
 
-            filters.forEach(button => {
+        currentFilter = filter.dataset.filter;
 
-                button.classList.remove(
-                    "active"
-                );
-
-            });
-
-
-            filter.classList.add(
-                "active"
-            );
-
-
-            currentFilter =
-                filter.dataset.filter;
-
-
-            renderTasks();
-
-        }
-    );
-
+        renderTasks();
+    });
 });
 
-
 // =========================
-// START
+// START APPLICATION
 // =========================
 
-loadTasks();
+const savedToken = localStorage.getItem("token");
+
+if (savedToken) {
+    loginPage.style.display = "none";
+    registerPage.style.display = "none";
+    todoPage.style.display = "block";
+
+    loadTasks();
+} else {
+    loginPage.style.display = "block";
+    registerPage.style.display = "none";
+    todoPage.style.display = "none";
+}

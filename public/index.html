@@ -20,7 +20,114 @@
 
     <div class="container">
 
-        <div class="todo-card">
+
+        <!-- ========================= -->
+        <!-- LOGIN -->
+        <!-- ========================= -->
+
+        <div class="todo-card" id="loginPage">
+
+            <h1>Welcome Back</h1>
+
+            <p class="subtitle">
+                Login to manage your tasks.
+            </p>
+
+
+            <div class="input-container">
+
+                <input
+                    type="email"
+                    id="loginEmail"
+                    placeholder="Email"
+                >
+
+            </div>
+
+
+            <div class="input-container">
+
+                <input
+                    type="password"
+                    id="loginPassword"
+                    placeholder="Password"
+                >
+
+            </div>
+
+
+            <button id="loginButton">
+                Login
+            </button>
+
+
+            <p>
+                Don't have an account?
+                <button id="showRegister">
+                    Register
+                </button>
+            </p>
+
+        </div>
+
+
+
+        <!-- ========================= -->
+        <!-- REGISTER -->
+        <!-- ========================= -->
+
+        <div class="todo-card" id="registerPage" style="display: none;">
+
+            <h1>Create Account</h1>
+
+            <p class="subtitle">
+                Create an account to get started.
+            </p>
+
+
+            <div class="input-container">
+
+                <input
+                    type="email"
+                    id="registerEmail"
+                    placeholder="Email"
+                >
+
+            </div>
+
+
+            <div class="input-container">
+
+                <input
+                    type="password"
+                    id="registerPassword"
+                    placeholder="Password"
+                >
+
+            </div>
+
+
+            <button id="registerButton">
+                Register
+            </button>
+
+
+            <p>
+                Already have an account?
+                <button id="showLogin">
+                    Login
+                </button>
+            </p>
+
+        </div>
+
+
+
+        <!-- ========================= -->
+        <!-- TODO LIST -->
+        <!-- ========================= -->
+
+        <div class="todo-card" id="todoPage" style="display: none;">
 
             <h1>To-Do List</h1>
 
@@ -93,9 +200,17 @@
 
             </div>
 
+
+            <!-- LOGOUT -->
+
+            <button id="logoutButton">
+                Logout
+            </button>
+
         </div>
 
     </div>
+
 
     <script src="script.js"></script>
 
